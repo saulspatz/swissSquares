@@ -19,71 +19,83 @@ at the present level.
 
 template <int N>
 using HoleSquare = std::array<std::array<Hole*, (N-1)/2>, (N-1)/2>;
-
 template<int N>
-struct Inherited {
-    HoleSquare<N> filled;                  // holes that have been filled in
-    std::array<Set<N>, N> usedRows;        // precluded values for rows
-    std::array<Set<N>, N> usedCols;        // precluded values for columns
-    Inherited() : filled{}, usedRows{}, usedCols{} {}
-};
-
-template<int N>
-struct Current {
-    int row; // row and column filled at this level
-    int col;
-    std::vector<Constraint> overlaps;
-    std::vector<Hole*>::iterator candidates;
-    std::vector<Hole*>::iterator stop;
-    Hole* choice; // hole used at this level
-    Current() : row{}, col{}, overlaps{}, candidates(), stop(),choice() {
-        //std::cout << "Current ctor " << overlaps.size() << std::endl;
-    }
-};
+using CellSquare = std::array<std::array<int, N>,N>;
 
 template<int N>
 struct Entry {
     static const int DIM = (N-1)/2;
-    Inherited<N> inherit;
-    Current<N> current;
     
-    Entry() : inherit(), current() {}
-    Entry(const Entry& e);
+    // These members are copied from preceding level, then updated
+    // Note that filled will reflect the choice made at this level,
+    // cells only reflects choices at prior levels.
+    
+    //These memebrs are copied from the previous level and updated
+    
+    HoleSquare<N> filled {};      // holes that have been filled in
+    CellSquare<N> cells {};       // cells that have been filled in
+    
+    // These members are initiated at every level
+    int row;
+    int col;
+    
+    std::vector<Constraint> overlaps;
+    std::vector<Hole*>::iterator candidates;
+    std::vector<Hole*>::iterator stop;
+
+    Entry() = default;
     bool suitable (Hole* hole);
+    void updateCells(const Entry& previous);
 };
 
 template<int N>
 bool Entry<N>::suitable (Hole* hole) {
     // Is hole suitable at this level?
     // Must satify all constraints and not violate "Latinity"
-    for (auto constraint : current.overlaps)
+    for (auto constraint : overlaps)
         if (not constraint.match(hole))
             return false;
-    int row = 2*current.row;
-    int col = 2*current.col;
-    auto & usedRows = inherit.usedRows;
-    auto & usedCols = inherit.usedCols;
+    // To test Latinity, simulate filling in the square
+    Set<N> used;
+    CellSquare<N> test(cells);
+    int rowBase = 2*row;
+    int colBase = 2*col;
+    for (int r = 0; r < 3; ++r)
+    for (int c = 0; c< 3; ++c) {
+        auto value = hole->cells[r][c];
+        test[rowBase+r][colBase+c] = value;
+    }
     for (int r = 0; r < 3; ++r) {
-        for (int c = 0; c< 3; ++c) {
-            auto value = hole->cells[r][c];
-            if (usedRows[row+r][value] or usedCols[col+c][value])
-                return false;
+        used.reset();
+        for (int c = 0; c < N; ++c){
+            int value = test[rowBase+r][c];
+            if (value == 0) continue;
+            if (used[value]) return false;
+            used.set(value);
+        }
+    }
+    for (int c = 0; c < 3; ++c) {
+        used.reset();
+        for (int r = 0; r < N; ++r){
+            int value = test[r][colBase+c];
+            if (value == 0) continue;
+            if (used[value]) return false;
+            used.set(value);
         }
     }
     return true;
 }
 
 template<int N>
-Entry<N>::Entry(const Entry& e) : inherit(e.inherit), current()  {
-    const Current<N>& old = e.current;
-    inherit.filled[old.row][old.col] = old.choice;
+void Entry<N>::updateCells(const Entry& previous) {
+    int baseRow = 2*previous.row;
+    int baseCol = 2*previous.col;
+    Hole& hole = *filled[row][col];
     for (int r = 0; r < 3; ++r)
     for (int c = 0; c < 3; ++c){
-        int value = old.choice->cells[r][c];
-        if (value != 0) {
-            inherit.usedRows[2*old.row+r].set(value);
-            inherit.usedCols[2*old.col+c].set(value);
-        }
+        int value = hole.cells[r][c];
+        if (value != 0)
+            cells[baseRow+r][baseCol+c] = value;
     }
 }
 

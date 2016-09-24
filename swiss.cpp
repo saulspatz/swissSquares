@@ -21,10 +21,9 @@ using std::endl;
 using std::array;
 using std::vector;
 
-Solver<7> solver;
-
 int main() {
-    Givens<7> clues {26,35,37,31,36,39,38,29,24};
+    Givens<7> clues {26,35,37,31,36,39,38,26,24};
+    Solver<7> solver;
     auto answer = solver.search(clues);
     switch(answer.size()) {
         case 0:
@@ -34,11 +33,16 @@ int main() {
             cout << "Unique solution" << endl;
             break;
         default:
-            cout << "Many solutions" << endl;
+            cout << answer.size() << " solutions" << endl;
             break;
     }
-    for (auto soln:answer) {
-        cout << '\n' << &soln << endl;
+    for (auto & soln:answer) {
+        for (auto & row:soln) {
+            for (auto col:row)
+                cout << col << " ";
+            cout << endl;
+        }
+        cout << endl;
     }
     return 0;
 }

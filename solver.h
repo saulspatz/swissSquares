@@ -9,7 +9,7 @@
 #define solver_h
 
 #include <iostream>
-#include <algorithm> // for sort
+#include <algorithm> // for sort, reverse
 #include "entry.h"
 
 template <int N>
@@ -31,19 +31,12 @@ SwissSquare<N> holes2Square(const HoleSquare<N>& holes){
     return answer;
 }
 
-template<int N>
-std::ostream& operator <<(std::ostream& os, const SwissSquare<N>& square) {
-    for (int row = 0; row < N; ++row) {
-        for (int col = 0; col < N; ++ col)
-            os << square[row][col] << " ";
-        os << std::endl;
-    }
-    return os;
-}
-
 template <int N>
 struct Solver {
     // Solves Swiss Square puzzle of fixed dimension N
+    // Technically, this should have a destrcutor for the Holelist,
+    // but I'm assuming that the Solver's lifetime will be the
+    // lifetime fo the program, so the OS will clean up.
     
     static const int DIM = (N-1)/2;    // dimension of square of holes
     HoleList holes[8*N-6];             // maximum central sum is 8*N-7
@@ -144,44 +137,31 @@ Solver<N>::search(Givens<N>& hints){
             sum = clues[r][c];
             if (holes[sum].count < min) {
                 min = holes[sum].count;
-                Stack[1].current.row = r;
-                Stack[1].current.col = c;
+                Stack[1].row = r;
+                Stack[1].col = c;
             }
         }
     }
-    Stack[1].current.candidates = holes[sum].all.begin();
-    Stack[1].current.stop = holes[sum].all.end();
+    Stack[1].candidates = holes[sum].all.begin();
+    Stack[1].stop = holes[sum].all.end();
     while (level > 0) {
-        auto & current = Stack[level].current;
-        while (current.candidates < current.stop) {
-            auto c = current.candidates;
-            while (c < current.stop and not Stack[level].suitable(*c) )
+        while (Stack[level].candidates != Stack[level].stop) {
+            auto c = Stack[level].candidates;
+            while (c < Stack[level].stop and not Stack[level].suitable(*c) )
                 c++;
-            if (c == current.stop ) break;   //backtrack
-            current.choice = *c;
-            current.candidates = c+1;
+            if (c == Stack[level].stop ) break;   //backtrack
+            Stack[level].filled[Stack[level].row][Stack[level].col] = *c;
+            Stack[level].candidates = c+1;
             if (level == DIM*DIM) {
-                auto soln = Stack[level].inherit.filled;
-                soln[current.row][current.col] = *c;
+                auto soln = Stack[level].filled;
+                soln[Stack[level].row][Stack[level].col] = *c;
                 answer.push_back(holes2Square<N>(soln));
-                if (answer.size() == 2)
-                    return answer;
+//                if (answer.size() == 2)
+//                    return answer;
             }
             else {
                 level += 1;
                 Stack[level] = Stack[level-1];
-                auto & inherit = Stack[level].inherit;
-                auto & old = Stack[level-1].current;
-                auto last = old.choice;
-                inherit.filled[old.row][old.col] = last;
-                for (int r = 0; r < 3; ++r)
-                for (int c = 0; c < 3; ++c) {
-                    int value = last->cells[r][c];
-                    if (value != 0){
-                        inherit.usedRows[2*old.row+r].set(value);
-                        inherit.usedCols[2*old.col+c].set(value);
-                    }
-                }
                 constrain(level);
             }
         }
@@ -207,17 +187,16 @@ Coords Solver<N>::best(int level) {
      smallest number of possibilities.
      */
     Coords answer;
-    
-    auto & filled = Stack[level].inherit.filled;
+    auto & filled = Stack[level].filled;
     Givens<N> touches {};
     for (int r = 0; r< DIM; ++r)
-        for (int c = 0; c < DIM; ++c) {
-            if (not filled[r][c]) continue;
-            if (r > 0 ) touches[r-1][c] +=1;
-            if (r < DIM-1) touches[r+1][c] +=1;
-            if (c > 0 ) touches[r][c-1] +=1;
-            if (c < DIM-1) touches[r][c+1] +=1;
-        }
+    for (int c = 0; c < DIM; ++c) {
+        if (not filled[r][c]) continue;
+        if (r > 0 ) touches[r-1][c] +=1;
+        if (r < DIM-1) touches[r+1][c] +=1;
+        if (c > 0 ) touches[r][c-1] +=1;
+        if (c < DIM-1) touches[r][c+1] +=1;
+    }
     
     int max = 0;
     for (int r = 0; r < DIM; ++ r)
@@ -240,16 +219,15 @@ Coords Solver<N>::best(int level) {
         }
     }
     
-    // Note: touches[r][c] = 0 for filled holes
     max = 0;
     for (int r = 0; r < DIM; ++r)
     for (int c = 0; c < DIM; ++ c) {
-        if (not touches[r][c]) continue;
-        if (rowHoles[r] > max) {
+        if (not touches[r][c] or filled[r][c]) continue;
+        if (rowHoles[r] > max and rowHoles[r] < DIM) {
             max = rowHoles[r];
             answer = Coords(r,c);
         }
-        if (colHoles[c] > max) {
+        if (colHoles[c] > max and colHoles[c] < DIM) {
             max = colHoles[c];
             answer = Coords(r,c);
         }
@@ -259,10 +237,9 @@ Coords Solver<N>::best(int level) {
     size_t min {INFINITY};
     for (int r = 0; r < DIM; ++r)
     for (int c = 0; c < DIM; ++c) {
-        if (not touches[r][c]) continue;
+        if (not touches[r][c] or filled[r][c]) continue;
         int hint = clues[r][c];
         int top = r-1;
-
         int bottom = r+1;
         int left = c-1;
         int right = c+1;
@@ -304,12 +281,17 @@ Coords Solver<N>::best(int level) {
 
 template<int N>
 void Solver<N>::constrain(int level){
-    // Pre: inherit has been updated
+    // 1. Update row and column preclusions
+    // 2. Choose the next hole as the one that seems hardest to fill
+    // 3. Work out the constraints on the new hole
     const int DIM = (N-1)/2;
+    auto & current = Stack[level];
+    auto & old = Stack[level-1];
+    current.updateCells(old);
     auto coords = best(level);
-    auto & current = Stack[level].current;
-    auto & filled = Stack[level].inherit.filled;
-   
+    
+    current.overlaps.clear();
+    auto & filled = current.filled;
     int row = current.row = coords.first;
     int col = current.col = coords.second;
     int hint = clues[current.row][current.col];
@@ -337,12 +319,14 @@ void Solver<N>::constrain(int level){
         auto c = holes[hint].rights[v].size();
         current.overlaps.push_back(Constraint('r',v,c));
     }
-    std::sort(current.overlaps.begin(), current.overlaps.end(),
+    auto & overlaps = current.overlaps;
+    std::sort(overlaps.begin(), overlaps.end(),
                [ ](Constraint& a, Constraint& b) {
                    return a.count > b.count;
                });
-    auto least = current.overlaps.back();   // most restrictive constraint
-    current.overlaps.pop_back();
+    auto least = overlaps.back();   // most restrictive constraint
+    overlaps.pop_back();
+    std::reverse(overlaps.begin(), overlaps.end());
     switch (least.side) {
         case 't':
             current.candidates = holes[hint].tops[least.value].begin();
