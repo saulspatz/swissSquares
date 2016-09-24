@@ -34,9 +34,10 @@ SwissSquare<N> holes2Square(const HoleSquare<N>& holes){
 template <int N>
 struct Solver {
     // Solves Swiss Square puzzle of fixed dimension N
-    // Technically, this should have a destrcutor for the Holelist,
-    // but I'm assuming that the Solver's lifetime will be the
-    // lifetime of the program, so the OS will clean up.
+    // There is no destructor for the Holelist, because
+    // the Solver's lifetime will be the lifetime of the
+    // program, so the OS will clean up.  A destructor
+    // would just be an opportunity to make programming errors.
     
     static const int DIM = (N-1)/2;    // dimension of square of holes
     HoleList holes[8*N-6];             // maximum central sum is 8*N-7
@@ -132,29 +133,32 @@ Solver<N>::search(Givens<N>& hints){
     int level = 1;
     int min = INFINITY;
     int sum =  0;
-    for (int r = 0; r < DIM; ++r) {
-        for (int c = 0; c < DIM; ++c) {
-            sum = clues[r][c];
-            if (holes[sum].count < min) {
-                min = holes[sum].count;
-                Stack[1].row = r;
-                Stack[1].col = c;
-            }
+    auto current = &Stack[1];
+    for (int r = 0; r < DIM; ++r)
+    for (int c = 0; c < DIM; ++c) {
+        sum = clues[r][c];
+        if (holes[sum].count < min) {
+            min = holes[sum].count;
+            current->row = r;
+            current->col = c;
         }
     }
-    Stack[1].candidates = holes[sum].all.begin();
-    Stack[1].stop = holes[sum].all.end();
+    current->candidates = holes[sum].all.begin();
+    current->stop =       holes[sum].all.end();
+    
     while (level > 0) {
-        while (Stack[level].candidates != Stack[level].stop) {
-            auto c = Stack[level].candidates;
-            while (c < Stack[level].stop and not Stack[level].suitable(*c) )
+        while (current->candidates != current->stop) {
+            auto c = current->candidates;
+            while (c < current->stop and not current->suitable(*c) )
                 c++;
-            if (c == Stack[level].stop ) break;   //backtrack
-            Stack[level].filled[Stack[level].row][Stack[level].col] = *c;
-            Stack[level].candidates = c+1;
+            if (c == current->stop) break;   //backtrack
+            int r1 = current->row;
+            int c1 = current->col;
+            current->filled[r1][c1] = *c;
+            current->candidates = c+1;
             if (level == DIM*DIM) {
-                auto soln = Stack[level].filled;
-                soln[Stack[level].row][Stack[level].col] = *c;
+                auto soln = current->filled;
+                soln[r1][c1] = *c;
                 answer.push_back(holes2Square<N>(soln));
                 if (answer.size() == 2)
                     return answer;
@@ -162,18 +166,20 @@ Solver<N>::search(Givens<N>& hints){
             else {
                 level += 1;
                 Stack[level] = Stack[level-1];
+                current = &Stack[level];
                 constrain(level);
             }
         }
         level = level-1;
+        current = &Stack[level];
     }
     return answer;
 }
 
 template<int N>
 Coords Solver<N>::best(int level) {
-    /* Returns the coordinates of the next hole to fill at this level.
-     This is the heart of the matter.
+    /* Returns the coordinates of the next empty hole to fill 
+     at this level.  This is the heart of the matter.
      Uses the following heuristic:
      1. Return the coordinates of a hole touching the greatest
      number of filled holes, provided it touches at least two.
@@ -192,9 +198,9 @@ Coords Solver<N>::best(int level) {
     for (int r = 0; r< DIM; ++r)
     for (int c = 0; c < DIM; ++c) {
         if (not filled[r][c]) continue;
-        if (r > 0 ) touches[r-1][c] +=1;
+        if (r > 0) touches[r-1][c] +=1;
         if (r < DIM-1) touches[r+1][c] +=1;
-        if (c > 0 ) touches[r][c-1] +=1;
+        if (c > 0) touches[r][c-1] +=1;
         if (c < DIM-1) touches[r][c+1] +=1;
     }
     
@@ -206,7 +212,7 @@ Coords Solver<N>::best(int level) {
             answer =  Coords(r,c);
         }
     }
-    if ( max > 1) return answer;
+    if ( max > 1) return answer;   // Heuristic 1
     
     std::array<int, DIM> rowHoles {};
     std::array<int, DIM> colHoles {};
@@ -232,7 +238,7 @@ Coords Solver<N>::best(int level) {
             answer = Coords(r,c);
         }
     }
-    if (max > 1) return answer;
+    if (max > 1) return answer;    // Heuristic 2
     
     size_t min {INFINITY};
     for (int r = 0; r < DIM; ++r)
@@ -276,7 +282,7 @@ Coords Solver<N>::best(int level) {
             }
         }
     }
-    return answer;
+    return answer;  // Heuristic 3
 }
 
 template<int N>
