@@ -33,7 +33,7 @@ int main() {
             cout << "Unique solution" << endl;
             break;
         default:
-            cout << answer.size() << " solutions" << endl;
+            cout << "Multiple solutions" << endl;
             break;
     }
     for (auto & soln:answer) {
