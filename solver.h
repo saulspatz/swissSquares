@@ -36,7 +36,7 @@ struct Solver {
     // Solves Swiss Square puzzle of fixed dimension N
     // Technically, this should have a destrcutor for the Holelist,
     // but I'm assuming that the Solver's lifetime will be the
-    // lifetime fo the program, so the OS will clean up.
+    // lifetime of the program, so the OS will clean up.
     
     static const int DIM = (N-1)/2;    // dimension of square of holes
     HoleList holes[8*N-6];             // maximum central sum is 8*N-7
@@ -156,8 +156,8 @@ Solver<N>::search(Givens<N>& hints){
                 auto soln = Stack[level].filled;
                 soln[Stack[level].row][Stack[level].col] = *c;
                 answer.push_back(holes2Square<N>(soln));
-//                if (answer.size() == 2)
-//                    return answer;
+                if (answer.size() == 2)
+                    return answer;
             }
             else {
                 level += 1;
@@ -284,7 +284,7 @@ void Solver<N>::constrain(int level){
     // 1. Update row and column preclusions
     // 2. Choose the next hole as the one that seems hardest to fill
     // 3. Work out the constraints on the new hole
-    const int DIM = (N-1)/2;
+    //const int DIM = (N-1)/2;
     auto & current = Stack[level];
     auto & old = Stack[level-1];
     current.updateCells(old);
