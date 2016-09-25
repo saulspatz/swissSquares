@@ -131,7 +131,7 @@ Solver<N>::search(Givens<N>& hints){
     clues = hints;
     SwissSquares<N> answer;
     int level = 1;
-    int min = INFINITY;
+    int min = 1000000000;  // INFINITY
     int sum =  0;
     auto current = &Stack[1];
     for (int r = 0; r < DIM; ++r)
@@ -142,9 +142,11 @@ Solver<N>::search(Givens<N>& hints){
             current->row = r;
             current->col = c;
         }
+        current->filled[r][c] = 0;   // erase results from prior puzzle
     }
-    current->candidates = holes[sum].all.begin();
-    current->stop =       holes[sum].all.end();
+    int hint = clues[current->row][current->col];
+    current->candidates = holes[hint].all.begin();
+    current->stop =       holes[hint].all.end();
     
     while (level > 0) {
         while (current->candidates != current->stop) {
@@ -240,7 +242,7 @@ Coords Solver<N>::best(int level) {
     }
     if (max > 1) return answer;    // Heuristic 2
     
-    size_t min {INFINITY};
+    size_t min {1000000000};   // INFINITY
     for (int r = 0; r < DIM; ++r)
     for (int c = 0; c < DIM; ++c) {
         if (not touches[r][c] or filled[r][c]) continue;

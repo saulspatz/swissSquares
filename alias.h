@@ -10,8 +10,6 @@
 #include <utility>   //for pair
 #include <array>
 
-static const int INFINITY = 100000000;
-
 template <int N>
 using Set = std::bitset<N+1>;
 template <int N>
