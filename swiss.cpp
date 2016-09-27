@@ -73,6 +73,7 @@ int main(int argc, char **argv) {
     ClueGenerator<N> gen;
     Givens<N> clues;
     int success = 0;
+    int multiple = 0;
     int errors = 0;
     for (int trial = 0; trial < trials; ++trial) {
         cout << trial+1 << " ";
@@ -80,13 +81,14 @@ int main(int argc, char **argv) {
         auto answer = solver.search(clues);
         switch(answer.size()) {
             case 0:
-                cout << "No solution" << endl;
+                cout << "No solution " << solver.count << " holes" << endl;
                 continue;
             case 1:
-                cout << "Unique solution" << endl;
+                cout << "Unique solution " << solver.count << " holes" << endl;
                 break;
             default:
-                cout << "Multiple solutions" << endl;
+                cout << "Multiple solutions " << solver.count << " holes" << endl;
+                multiple += 1;
                 continue;
         }
         success += 1;
@@ -109,6 +111,7 @@ int main(int argc, char **argv) {
         cout << endl  << endl;
     }
     cout << success << " successes in " << trials << " trials." << endl;
+    cout << multiple << " multiple solutions." << endl;
     cout << errors << " errors encountered." << endl;
     return 0;
 }

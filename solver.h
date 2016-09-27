@@ -43,6 +43,7 @@ struct Solver {
     HoleList holes[8*N-6];             // maximum central sum is 8*N-7
     Givens<N> clues;
     std::array<Entry<N>,1+(N-1)*(N-1)/4> Stack;
+    long int count;                    // number of holes inspected
     
     Solver();
     int makeHoles();
@@ -133,6 +134,7 @@ Solver<N>::search(Givens<N>& hints){
     int level = 1;
     int min = 1000000000;  // INFINITY
     int sum =  0;
+    count = 0;
     auto current = &Stack[1];
     for (int r = 0; r < DIM; ++r)
     for (int c = 0; c < DIM; ++c) {
@@ -153,6 +155,7 @@ Solver<N>::search(Givens<N>& hints){
             auto c = current->candidates;
             while (c < current->stop and not current->suitable(*c) )
                 c++;
+            count += c - current->candidates; // update holes inspected count
             if (c == current->stop) break;   //backtrack
             int r1 = current->row;
             int c1 = current->col;
