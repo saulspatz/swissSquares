@@ -16,7 +16,7 @@
 #include <fstream>
 #include <string>
 #include "solver.h"
-#include "clueGenerator.h"
+#include "randomLatin.h"
 
 using std::cout;
 using std::endl;
