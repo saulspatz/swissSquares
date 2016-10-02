@@ -155,8 +155,8 @@ Solver<N>::search(Givens<N>& hints){
             auto c = current->candidates;
             while (c < current->stop and not current->suitable(*c) )
                 c++;
-            count += c - current->candidates; // update holes inspected count
-            if (c == current->stop) break;   //backtrack
+            count += 1 + (c - current->candidates); // update holes inspected count
+            if (c == current->stop) break;          // backtrack
             int r1 = current->row;
             int c1 = current->col;
             current->filled[r1][c1] = *c;

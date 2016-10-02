@@ -26,6 +26,26 @@ using std::exit;
 using std::stoi;
 
 template <int N>
+void printClues(const Givens<N>& clues) {
+    for ( auto & row: clues) {
+        for ( auto & clue :row)
+            cout << clue << " ";
+        cout << endl;
+    }
+    cout << endl;
+}
+
+template <int N>
+void printSolution(const SwissSquare<N>& soln) {
+    for (auto & row:soln) {
+        for (auto col:row)
+            cout << col << " ";
+        cout << endl;
+    }
+    cout << endl  << endl;
+}
+
+template <int N>
 bool audit(const SwissSquare<N>& soln, const Givens<N> & clues) {
     const int DIM = (N-1)/2;
     Set<N> used;
@@ -79,6 +99,10 @@ int main(int argc, char **argv) {
         cout << trial+1 << " ";
         clues = gen.next();
         auto answer = solver.search(clues);
+        if (solver.count == 0) {
+            printClues<N>(clues);
+            exit(0);
+        }
         switch(answer.size()) {
             case 0:
                 cout << "No solution " << solver.count << " holes" << endl;
@@ -92,23 +116,14 @@ int main(int argc, char **argv) {
                 continue;
         }
         success += 1;
-        for ( auto & row: clues) {
-            for ( auto & clue :row)
-                cout << clue << " ";
-            cout << endl;
-        }
-        cout << endl;
+        printClues<N>(clues);
+        
         auto &soln(answer[0]);
         if (not audit<N>(soln, clues)) {
             cout << "INCORRECT SOLUTION FOLLOWS"<<endl;
             errors++;
         }
-        for (auto & row:soln) {
-            for (auto col:row)
-                cout << col << " ";
-            cout << endl;
-        }
-        cout << endl  << endl;
+        printSolution<N>(soln);
     }
     cout << success << " successes in " << trials << " trials." << endl;
     cout << multiple << " multiple solutions." << endl;
