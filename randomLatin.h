@@ -1,8 +1,7 @@
 //
 //  randomLatin.h
-//  RandomLatin
 //
-//  Created by Saul Spatz on 9/28/16.
+//  Created by Saul Spatz on 10/2/16.
 //
 /*
  Implementation of technique for generating almost uniformly-distributed random
@@ -46,11 +45,13 @@
 #include <random>
 #include <array>
 #include <bitset>   // for audit
+#include "alias.h"
 
 template <int N>
 class LatinGenerator {
     using Square = std::array<std::array<std::array<int, 2>, N+1>, N+1>;
     const int MIN_ITER = 2*(N-1)*(N-1)*(N-1);
+    const int DIM = (N-1)/2;
 private:
     std::random_device rd;
     std::mt19937 engine;
@@ -68,9 +69,6 @@ private:
     void perturbImproper();
     inline void update();
     
-    // for debugging only
-    bool squareTest(const Square& S, int x, int y, int z);
-    bool audit();
 public:
     LatinGenerator();
     std::array<std::array<int, N>, N> next();
@@ -161,71 +159,14 @@ std::array<std::array<int, N>, N> LatinGenerator<N>::next(){
     std::array<std::array<int, N>, N> answer;
     int iters = 0;
     while (iters < MIN_ITER or not isProper ) {
-        //        if (not audit()) {
-        //            std::cout << "Failed audit at iteration " << iters << std::endl;
-        //            std::exit(-1);
-        //        }
         if (isProper)
             perturbProper();
         else
             perturbImproper();
         iters += 1;
-        
     }
     for (int r = 0; r < N; ++r)
-        for (int c = 0; c < N; ++c)
-            answer[r][c] = RC[r+1][c+1][0];
+    for (int c = 0; c < N; ++ c)
+        answer[r][c] = RC[r+1][c+1][0];
     return answer;
-}
-
-template <int N>
-bool LatinGenerator<N>::audit(){
-    return squareTest(RC, r0, c0, s0) and
-    squareTest(RS, r0, s0, c0) and
-    squareTest(CS, c0, s0, r0);
-}
-
-template<int N>
-bool LatinGenerator<N>::squareTest(const Square& S, int x0, int y0, int z0) {
-    std::bitset<N+1> used;
-    std::bitset<N+1> full;
-    full.set();
-    full.reset(0);
-    
-    for (int x = 1; x < N+1; ++x) {
-        used.reset();
-        for (int y = 1; y < N+1; ++y) {
-            int z = S[x][y][0];
-            if (used[z]) {
-                if (isProper) return false;
-                if (z != z0 or x != x0) return false;
-            }
-            used.set(z);
-        }
-        if (used != full) {
-            if (isProper) return false;
-            if (x != x0) return false;
-            used.set(S[x0][y0][1]);
-            if (used != full) return false;
-        }
-    }
-    
-    for (int y = 1; y < N+1; ++y) {
-        used.reset();
-        for (int x = 1; x < N+1; ++x) {
-            int z = S[x][y][0];
-            if (used[z]) {
-                if (isProper) return false;
-                if (z != z0 or y != y0) return false;
-            }
-            used.set(z);
-        }
-        if (used != full) {
-            if (isProper) return false;
-            if (y != y0) return false;
-            used.set(S[x0][y0][1]);
-            if (used != full) return false;
-        }
-    }
-    return true;
 }

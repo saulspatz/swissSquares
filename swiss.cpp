@@ -15,34 +15,55 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <fstream>
 #include "solver.h"
 #include "randomLatin.h"
 
 using std::cout;
+using std::cerr;
 using std::endl;
+using std::ofstream;
+using std::ostream;
 using std::array;
 using std::vector;
 using std::exit;
 using std::stoi;
 
 template <int N>
-void printClues(const Givens<N>& clues) {
+void printClues(const Givens<N>& clues, ostream& out) {
     for ( auto & row: clues) {
         for ( auto & clue :row)
-            cout << clue << " ";
-        cout << endl;
+            out << clue << " ";
+        out << endl;
     }
-    cout << endl;
+    out << endl;
 }
 
 template <int N>
-void printSolution(const SwissSquare<N>& soln) {
+void printSolution(const SwissSquare<N>& soln, ostream& out) {
     for (auto & row:soln) {
         for (auto col:row)
-            cout << col << " ";
-        cout << endl;
+            out << col << " ";
+        out << endl;
     }
-    cout << endl  << endl;
+    out << endl  << endl;
+}
+
+template<int N>
+Givens<N> square2Clues(const SwissSquare<N>& soln) {
+    Givens<N> answer {};
+    const int DIM = (N-1)/2;
+    
+    for (int r = 0; r < DIM; ++r)
+    for (int c = 0; c < DIM; ++c) {
+        int rowCenter = 2*r+1;
+        int colCenter = 2*c+1;
+        for (int i=-1; i <=1; ++i)
+        for (int j=-1; j <= 1; ++j)
+            answer[r][c] += soln[rowCenter+i][colCenter+j];
+        answer[r][c] -= soln[rowCenter][colCenter];
+    }
+    return answer;
 }
 
 template <int N>
@@ -82,51 +103,42 @@ bool audit(const SwissSquare<N>& soln, const Givens<N> & clues) {
 }
 
 int main(int argc, char **argv) {
-    if ( argc != 2) {
-        cout << "Usage " << argv[0] << " trials" << endl;
+    if ( argc != 3) {
+        cerr << "Usage " << argv[0] << " trials outfile" << endl;
         exit(1);
     }
     const int N = 7;
     int trials = stoi(argv[1]);
+    ofstream fout;
+    
+    fout.open(argv[2], std::fstream::app);
+
+    if (not fout) {
+        cerr << "Could not open " << argv[2] << " for output."  << endl;
+        exit(1);
+    }
     
     Solver<N> solver;
-    ClueGenerator<N> gen;
+    LatinGenerator<N> gen;
     Givens<N> clues;
     int success = 0;
-    int multiple = 0;
     int errors = 0;
     for (int trial = 0; trial < trials; ++trial) {
-        cout << trial+1 << " ";
-        clues = gen.next();
+        cout << '\r' << trial+1 << std::flush;
+        clues = square2Clues<N>(gen.next());
         auto answer = solver.search(clues);
-        if (solver.count == 0) {
-            printClues<N>(clues);
-            exit(0);
-        }
-        switch(answer.size()) {
-            case 0:
-                cout << "No solution " << solver.count << " holes" << endl;
-                continue;
-            case 1:
-                cout << "Unique solution " << solver.count << " holes" << endl;
-                break;
-            default:
-                cout << "Multiple solutions " << solver.count << " holes" << endl;
-                multiple += 1;
-                continue;
-        }
+        if (answer.size()!=1) continue;
         success += 1;
-        printClues<N>(clues);
-        
+        printClues<N>(clues, fout);
         auto &soln(answer[0]);
         if (not audit<N>(soln, clues)) {
-            cout << "INCORRECT SOLUTION FOLLOWS"<<endl;
+            fout << "INCORRECT SOLUTION FOLLOWS"<<endl;
             errors++;
         }
-        printSolution<N>(soln);
+        printSolution<N>(soln, fout);
     }
+    cout << endl;
     cout << success << " successes in " << trials << " trials." << endl;
-    cout << multiple << " multiple solutions." << endl;
     cout << errors << " errors encountered." << endl;
     return 0;
 }
